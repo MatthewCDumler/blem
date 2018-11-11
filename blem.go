@@ -15,60 +15,55 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+var (
+	privateKey *ecdsa.PrivateKey
+)
+
+func privateKeyInit(file, passwd string) {
+	jsonBlob, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	key, err := keystore.DecryptKey(jsonBlob, passwd)
+	if err != nil {
+		log.Fatal(err)
+	}
+	privateKey = key.PrivateKey
+}
+
 func main() {
-	client, err := ethclient.Dial("enode://d6d5a3337f833adfed8de4c9a7ee0d6ddd8958a37af03a7df1348e2a7d32b0e3dd512c45c899245054dd2f110d4b1390f54745d5d2d95789414381d83359fb20@76.183.85.175:30303")
+	client, err := ethclient.Dial(".ethereum_private/geth.ipc")
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("connected")
 
-	jsonBlob, err := ioutil.ReadFile("eth/.ethereum_private/keystore/UTC--2018-11-10T18-19-33.609052487Z--955f074178cdc5a7c72ba8fa0db9695fa9624446")
-	if err != nil {
-		log.Fatal(err)
-	}
-	key, err := keystore.DecryptKey(jsonBlob, "apple123")
-	if err != nil {
-		log.Fatal(err)
-	}
-	pk := key.PrivateKey
-
-	publicKey := pk.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	privateKeyInit(".ethereum_private/keystore/UTC--2018-11-11T00-54-48.985136186Z--83a184bcc727851c493e6a2a76bcd37b86245de6", "apple")
+	publicKeyECDSA, ok := privateKey.Public().(*ecdsa.PublicKey)
 	if !ok {
 		log.Fatal("ECDSA ERROR")
 	}
 
-	fAddr := crypto.PubkeyToAddress(*publicKeyECDSA)
-	balance, err := client.BalanceAt(context.Background(), fAddr, nil)
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(balance)
-
-	nonce, err := client.PendingNonceAt(context.Background(), fAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	value := big.NewInt(1)
 	gasLimit := uint64(30000)
 	gasPrice := big.NewInt(1)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(gasLimit)
-	fmt.Println(gasPrice)
+	toAddress := common.HexToAddress("0x14459c9a824599d0b98807729c9505a80b9e4f0f")
 
-	tAddr :=  common.HexToAddress("0xd7bfaddb6ea22e59aaefa337e0d182fdd44f6bf2")
-
-	tx := types.NewTransaction(nonce, tAddr, value, gasLimit, gasPrice, nil)
-
+	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
 	chainID, err := client.NetworkID(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), pk)
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -77,5 +72,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("tx sent: %s", signedTx.Hash().Hex())
+	fmt.Printf("tx sent: %s\n", signedTx.Hash().Hex())
 }
