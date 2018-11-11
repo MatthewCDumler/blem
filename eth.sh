@@ -1,1 +1,1 @@
-geth --syncmode "fast" --cache 512 --ipcpath eth/geth.ipc --networkid 728828 --datadir eth/.ethereum_private console
+geth --syncmode "fast" --cache 512 --ipcpath geth.ipc --networkid 420 --datadir .ethereum_private console

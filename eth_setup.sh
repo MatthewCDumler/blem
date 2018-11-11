@@ -1,1 +1,1 @@
-geth --datadir eth/.ethereum_private init eth/genesis.json
+geth --datadir .ethereum_private init blem.json
