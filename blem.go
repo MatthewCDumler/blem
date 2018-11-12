@@ -33,13 +33,13 @@ func privateKeyInit(file, passwd string) {
 }
 
 func main() {
-	client, err := ethclient.Dial(".ethereum_private/geth.ipc")
+	// dial up client 
+	client, err := ethclient.Dial("ethereum/geth.ipc")
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("connected")
 
-	privateKeyInit(".ethereum_private/keystore/UTC--2018-11-11T00-54-48.985136186Z--83a184bcc727851c493e6a2a76bcd37b86245de6", "apple")
+	privateKeyInit("ethereum/keystore/UTC--2018-11-11T00-54-48.985136186Z--83a184bcc727851c493e6a2a76bcd37b86245de6", "apple")
 	publicKeyECDSA, ok := privateKey.Public().(*ecdsa.PublicKey)
 	if !ok {
 		log.Fatal("ECDSA ERROR")

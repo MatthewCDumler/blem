@@ -1,2 +1,4 @@
-eth/.ethereum_private/*
-eth/*.ipc
+ethereum/geth.ipc
+ethereum/history
+ethereum/keystore/
+ethereum/geth/
