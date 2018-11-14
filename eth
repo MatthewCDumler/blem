@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # clean ethereum instance
-rm -rf ethereum/geth/
+rm -rf ethereum/geth
 
 # launch network and console
-./scripts/eth_setup
-./scripts/eth_init
+. scripts/eth_setup
+. scripts/eth_init

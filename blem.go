@@ -1,76 +1,108 @@
 package main
 
 import (
-	"crypto/ecdsa"
-	"context"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"math/big"
+    "crypto/ecdsa"
+    "context"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "log"
+    "math/big"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
+    "github.com/ethereum/go-ethereum/accounts/keystore"
+    "github.com/ethereum/go-ethereum/common"
+    "github.com/ethereum/go-ethereum/core/types"
+    "github.com/ethereum/go-ethereum/crypto"
+    "github.com/ethereum/go-ethereum/ethclient"
 )
 
-var (
-	privateKey *ecdsa.PrivateKey
-)
+type config struct {
+    RawURL string
+    UserKey string
+    UserPW string
+}
 
-func privateKeyInit(file, passwd string) {
-	jsonBlob, err := ioutil.ReadFile(file)
-	if err != nil {
-		log.Fatal(err)
-	}
+var userConfig config
 
-	key, err := keystore.DecryptKey(jsonBlob, passwd)
-	if err != nil {
-		log.Fatal(err)
-	}
-	privateKey = key.PrivateKey
+// readConfig parses the json in the user's config for settings.
+func readConfig() {
+    jsonBlob, err := ioutil.ReadFile("/home/matt/go/src/github.com/MatthewCDumler/blem/blem.json")
+    if err != nil {
+            log.Fatal(err)
+    }
+
+    err = json.Unmarshal(jsonBlob, &userConfig)
+    if err != nil {
+            log.Fatal(err)
+    }
+}
+
+// newPrivateKey returns a user's private key as a *ecdsa.PrivateKey.
+func newPrivateKey(file, passwd string) (pk *ecdsa.PrivateKey) {
+    // read in the json blob
+    jsonBlob, err := ioutil.ReadFile(file)
+    if err != nil {
+            log.Fatal(err)
+    }
+
+    // decrypt the key
+    key, err := keystore.DecryptKey(jsonBlob, passwd)
+    if err != nil {
+            log.Fatal(err)
+    }
+
+    // return the private key
+    return key.PrivateKey
 }
 
 func main() {
-	// dial up client 
-	client, err := ethclient.Dial("ethereum/geth.ipc")
-	if err != nil {
-		log.Fatal(err)
-	}
+    readConfig()
+    // dial up client 
+    client, err := ethclient.Dial(userConfig.RawURL)
+    if err != nil {
+            log.Fatal(err)
+    }
 
-	privateKeyInit("ethereum/keystore/UTC--2018-11-11T00-54-48.985136186Z--83a184bcc727851c493e6a2a76bcd37b86245de6", "apple")
-	publicKeyECDSA, ok := privateKey.Public().(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("ECDSA ERROR")
-	}
+    // get private key from keystore and password
+    privateKey := newPrivateKey(userConfig.UserKey, userConfig.UserPW)
+    // get public key from private key
+    publicKeyECDSA, ok := privateKey.Public().(*ecdsa.PublicKey)
+    if !ok {
+            log.Fatal("ECDSA ERROR")
+    }
 
-	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		log.Fatal(err)
-	}
-	value := big.NewInt(1)
-	gasLimit := uint64(30000)
-	gasPrice := big.NewInt(1)
-	if err != nil {
-		log.Fatal(err)
-	}
-	toAddress := common.HexToAddress("0x14459c9a824599d0b98807729c9505a80b9e4f0f")
+    // get user's address from public key
+    fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+    // set the nonce
+    nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+    if err != nil {
+            log.Fatal(err)
+    }
+    // set the value, gas limit, and gas price
+    value := big.NewInt(1)
+    gasLimit := uint64(30000)
+    gasPrice := big.NewInt(1)
+    // get the receipient's address from hex
+    toAddress := common.HexToAddress("0x14459c9a824599d0b98807729c9505a80b9e4f0f")
 
-	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
-	chainID, err := client.NetworkID(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	}
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
-	if err != nil {
-		log.Fatal(err)
-	}
+    // create the transaction
+    tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
+    // get the chain ID
+    chainID, err := client.NetworkID(context.Background())
+    if err != nil {
+            log.Fatal(err)
+    }
+    // sign the transaction
+    signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+    if err != nil {
+            log.Fatal(err)
+    }
 
-	err = client.SendTransaction(context.Background(), signedTx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("tx sent: %s\n", signedTx.Hash().Hex())
+    // send the signed transaction
+    err = client.SendTransaction(context.Background(), signedTx)
+    if err != nil {
+            log.Fatal(err)
+    }
+    // confirm transaction to output
+    fmt.Printf("tx sent: %s\n", signedTx.Hash().Hex())
 }
